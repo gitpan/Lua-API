@@ -1,0 +1,22 @@
+2010-07-01 17:30 -0400  djerius  <djerius@cfa.harvard.edu>  (d553220cbada [tip])
+
+	* Makefile.PL:
+	force run of checklibs as author to get Devel::CheckLibs bundled
+
+2010-07-01 17:29 -0400  djerius  <djerius@cfa.harvard.edu>  (81dd108e1ad2)
+
+	* Makefile.PL:
+	check pkg-config results to make sure compilation succeeds
+
+2010-07-01 17:04 -0400  djerius  <djerius@cfa.harvard.edu>  (9f6553383302)
+
+	* API.xs, Changes, MANIFEST.SKIP, Makefile.PL, README,
+	examples/lua.pl, lib/Lua/API.pm, t/000_standard__compile.t,
+	t/000_standard__pod.t, t/constants.t, typemap,
+	xt/000_standard__perl_critic.t: new file.
+	* API.xs, Changes, MANIFEST.SKIP, Makefile.PL, README,
+	examples/lua.pl, lib/Lua/API.pm, t/000_standard__compile.t,
+	t/000_standard__pod.t, t/constants.t, typemap,
+	xt/000_standard__perl_critic.t:
+	initial import
+
