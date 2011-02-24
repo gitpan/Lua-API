@@ -25,11 +25,10 @@ use 5.008000;
 use strict;
 use warnings;
 use Carp;
-use AutoLoader;
 
 our @ISA = qw();
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use vars qw[ &COPYRIGHT &ENVIRONINDEX &ERRERR &ERRFILE &ERRMEM &ERRRUN
 	     &ERRSYNTAX &GCCOLLECT &GCCOUNT &GCCOUNTB &GCRESTART
@@ -73,105 +72,116 @@ XSLoader::load('Lua::API', $VERSION);
 
 #---------------------------------------------------------
 
-# These functions use C's stdarg facility, which makes it impossible
-# to create a Perl interface to them.  Instead, Perl-ify them a bit.
-# They should be coded in XS. The functionality in Perl's sprintf
-# is a superset of what Lua's push[v]fstring does so this is not
-# exactly compatible.
+# Perl only wrappers/replacements
+{
+    package Lua::API::State;
 
-sub pushfstring {
-    my $self = shift;
-    return $self->pushstring( sprintf( @_ ) );
-}
+    # These functions use C's stdarg facility, which makes it impossible
+    # to create a Perl interface to them.  Instead, Perl-ify them a bit.
+    # They should be coded in XS. The functionality in Perl's sprintf
+    # is a superset of what Lua's push[v]fstring does so this is not
+    # exactly compatible.
 
-sub pushvfstring {
-    my ( $self, $argp )  = shift;
-    return $self->pushstring( sprintf( @$argp ) );
-}
-
-sub error {
-
-    my ( $self ) = shift;
-
-    if ( @_ )
-    {
-	$self->where( 1 );
-	$self->pushvfstring( @_ );
-	$self->concat( 2 );
+    sub pushfstring {
+	my $self = shift;
+	my $fmt = shift;
+	return $self->pushstring( sprintf( $fmt, @_ ) );
     }
 
-    $self->lua_error;
-}
+    sub pushvfstring {
+	my $self = shift;
+	my $fmt = shift;
+	return $self->pushstring( sprintf( $fmt, @_ ) );
+    }
 
+    sub error {
 
-#---------------------------------------------------------
+	my $self = shift;
 
-# This is a pretty-much direct translation of lua_register and
-# luaL_register into Perl, but Perl-ified.
-
-# calling sequence is
-
-#   $L->register( $name, $f )      -> lua_register( L, name, f );
-#   $L->register( \%l )            -> luaL_register( L, "", l )
-#   $L->register( $libname, \%l )  -> luaL_register( L, libname, l )
-
-sub Lua::API::State::register {
-
-    my ( $L ) = shift;
-
-    # luaL_register; can't call it directly as it doesn't use
-    # lua_register
-    if ( (@_ == 1 || @_ == 2) && 'HASH' eq ref $_[-1] )
-    {
-	my $l = pop;
-	my $libname = shift;
-
-	if (defined $libname)
+	if ( @_ )
 	{
-	    my $size = keys %$l;
+	    my @caller = caller(1);
+	    $caller[3] = join( '::', @caller[1,2]) if $caller[3] eq '(eval)';
+	    $self->pushstring( $caller[3] . ': ' );
+	    $self->pushvfstring( @_ );
+	    $self->concat( 2 );
+	}
 
-	    # check whether lib already exists
-	    $L->findtable( REGISTRYINDEX, "_LOADED", 1);
-	    $L->getfield(-1, $libname);	# get _LOADED[libname]
+	my $scalar;
+	bless \$scalar,  "Lua::API::State::Error";
+	die( \$scalar );
+    }
 
-	    # not found?
-	    if (! $L->istable(-1))
+
+    #---------------------------------------------------------
+
+    # This is a pretty-much direct translation of lua_register and
+    # luaL_register into Perl, but Perl-ified.
+
+    # calling sequence is
+
+    #   $L->register( $name, $f )      -> lua_register( L, name, f );
+    #   $L->register( \%l )            -> luaL_register( L, "", l )
+    #   $L->register( $libname, \%l )  -> luaL_register( L, libname, l )
+
+    sub register {
+
+	my ( $L ) = shift;
+
+	# luaL_register; can't call it directly as it doesn't use
+	# lua_register
+	if ( (@_ == 1 || @_ == 2) && 'HASH' eq ref $_[-1] )
+	{
+	    my $l = pop;
+	    my $libname = shift;
+
+	    if (defined $libname)
 	    {
-		$L->pop(1);	# remove previous result
+		my $size = keys %$l;
 
-		# try global variable (and create one if it does not exist)
-		if (defined $L->findtable( GLOBALSINDEX, $libname, $size) )
+		# check whether lib already exists
+		$L->findtable( Lua::API::REGISTRYINDEX, "_LOADED", 1);
+		$L->getfield(-1, $libname); # get _LOADED[libname]
+
+		# not found?
+		if (! $L->istable(-1))
 		{
-		    $L->error( "name conflict for module '$libname'" );
+		    $L->pop(1);	# remove previous result
+
+		    # try global variable (and create one if it does not exist)
+		    if (defined $L->findtable( Lua::API::GLOBALSINDEX, $libname, $size) )
+		    {
+			$L->error( "name conflict for module '$libname'" );
+		    }
+		    $L->pushvalue( -1 );
+		    $L->setfield( -3, $libname); # _LOADED[libname] = new table
 		}
-		$L->pushvalue( -1 );
-		$L->setfield( -3, $libname); # _LOADED[libname] = new table
+		$L->remove( -2 ); # remove _LOADED table
 	    }
-	    $L->remove( -2 );	# remove _LOADED table
+
+	    while ( my ( $name, $func ) = each %$l )
+	    {
+		$L->pushcclosure( $func, 0);
+		$L->setfield( -2, $name);
+	    }
+
 	}
 
-	while ( my ( $name, $func ) = each %$l )
+	# lua_register
+	elsif ( @_ == 2 )
 	{
-	    $L->pushcclosure( $func, 0);
-	    $L->setfield( -2, $name);
+	    $L->lua_register( @_ );
 	}
 
-    }
+	else
+	{
+	    croak( "Lua::APIState::register: incorrect parameters\n" );
+	}
 
-    # lua_register
-    elsif ( @_ == 2 )
-    {
-	$L->lua_register( @_ );
-    }
 
-    else
-    {
-	croak( "Lua::APIState::register: incorrect parameters\n" );
     }
-
 
 }
-
 
 #---------------------------------------------------------
 
@@ -215,7 +225,7 @@ the most important, as it represents an instance of the Lua
 interpreter.  Currently C<lua_State>, C<lua_Buffer>, and C<lua_Debug>
 are supported as the Perl classes B<Lua::API::State>,
 B<Lua::API::Buffer>, and B<Lua::API::Debug>. The functionality
-provided by C<luaL_Reg> the object is provided in a more Perlish
+provided by the C<luaL_Reg> object is provided in a more Perlish
 fashion by B<Lua::API> and it is thus not exposed.
 
 The B<Lua> C API also defines the following function interfaces:
@@ -280,6 +290,16 @@ C<Lua::API> namespace, with the C<LUA_> prefix removed
 (e.g. C<Lua::API::REGISTRYINDEX>).  They are B<not> exported (either
 implicitly or by request).
 
+=head2 Lua C<error> and Perl C<die>
+
+Lua's version of Perl's C<die> is C<error>.  In order to ensure that
+Perl's stack handling isn't mucked about with when C<error> is called,
+a call to B<Lua::API::State::error> is implemented as a call to C<die>
+which is caught and then converted into a true call to C<lua_error> in
+the Perl/Lua interface code.  This I<should> be transparent to the user.
+
+Calls to C<die> from within code invoked by Lua are treated as calls
+call to C<Lua::API::State::error>.
 
 =head2 Using Lua::API
 

@@ -1,4 +1,75 @@
-2010-07-01 17:30 -0400  djerius  <djerius@cfa.harvard.edu>  (d553220cbada [tip])
+2011-02-24 16:41 -0500  djerius  <djerius@cfa.harvard.edu>  (20024a01b3b4 [tip])
+
+	* Makefile.PL:
+	add missing test dependency on Test::Compile
+
+2011-02-24 16:27 -0500  djerius  <djerius@cfa.harvard.edu>  (10d748ddba98)
+
+	* MANIFEST.SKIP:
+	more manifest cleanup
+
+2011-02-24 15:39 -0500  djerius  <djerius@cfa.harvard.edu>  (7b1dba15c61a)
+
+	* MANIFEST.SKIP:
+	previous change to MANIFEST.SKIP broke distribution of tests
+
+2011-02-24 15:31 -0500  djerius  <djerius@cfa.harvard.edu>  (12d7c9540ed8)
+
+	* API.xs:
+	remove unused variables
+
+2011-02-24 15:30 -0500  djerius  <djerius@cfa.harvard.edu>  (aabd88c772a9)
+
+	* t/error.t: new file.
+	* API.xs, Makefile.PL, lib/Lua/API.pm, t/error.t:
+	properly implement Lua errors
+
+	Calling lua_error from within a Perl callback (e.g. with lua_cpcall
+	) sends Perl into never-never land, presumably because it doesn't
+	restore Perl's state properly. Lua::API::State::error now actually
+	die()'s, and the trampoline functions check for die's and translates
+	those into calls to lua_error. This hopefully keeps Perl's state
+	clean.
+
+2011-02-24 15:20 -0500  djerius  <djerius@cfa.harvard.edu>  (781746b0dd25)
+
+	* lib/Lua/API.pm:
+	properly prefix error() message with location in Perl code
+
+2011-02-24 15:17 -0500  djerius  <djerius@cfa.harvard.edu>  (5f98214546e6)
+
+	* lib/Lua/API.pm:
+	ensure that sprintf() gets at least one argument if @_ is empty
+
+2011-02-24 15:16 -0500  djerius  <djerius@cfa.harvard.edu>  (ff01eff415cf)
+
+	* lib/Lua/API.pm:
+	pushfstring, pusvfstring and error were in Lua::API, not
+	Lua::API::State.
+
+	* put pushfstring, pusvfstring and error into Lua::API::State
+
+	* remove use of AutoLoader, as it apparently doesn't like nested
+	packages in a single file. not much of a loss, if any.
+
+2011-02-24 15:06 -0500  djerius  <djerius@cfa.harvard.edu>  (77494aa1f2e9)
+
+	* MANIFEST.SKIP:
+	don't add the generated API.o & API.c files to the distribution
+
+2010-07-01 17:34 -0400  djerius  <djerius@cfa.harvard.edu>  (140552152785)
+
+	* .hgtags: new file.
+	* .hgtags:
+	Added tag 0.01 for changeset 0c1c0d73b16b
+
+2010-07-01 17:30 -0400  djerius  <djerius@cfa.harvard.edu>  (0c1c0d73b16b [0.01])
+
+	* ChangeLog: new file.
+	* ChangeLog:
+	update ChangeLog
+
+2010-07-01 17:30 -0400  djerius  <djerius@cfa.harvard.edu>  (d553220cbada)
 
 	* Makefile.PL:
 	force run of checklibs as author to get Devel::CheckLibs bundled

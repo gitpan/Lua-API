@@ -24,6 +24,9 @@ author_requires 'ExtUtils::Constant';
 
 configure_requires 'ExtUtils::PkgConfig';
 
+test_requires 'Test::Most';
+test_requires 'Test::Compile';
+
 my %pkg_info = find_lua();
 
 use_ppport;

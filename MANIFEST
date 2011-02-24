@@ -1,6 +1,3 @@
-API.bs
-API.c
-API.o
 API.xs
 ChangeLog
 Changes
@@ -34,5 +31,6 @@ README
 t/000_standard__compile.t
 t/000_standard__pod.t
 t/constants.t
+t/error.t
 typemap
 xt/000_standard__perl_critic.t

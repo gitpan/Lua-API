@@ -153,11 +153,11 @@ void set_hook( lua_State *L, SV* func )
 static
 void l2p_hook( lua_State *L, lua_Debug *ar )
 {
+    char *error = NULL;
+    STRLEN error_len;
     SV** svp;
     HV* oob = get_oob_entry( L );
     SV* hook;
-    SV* rv;
-    SV* sv;
     dSP;
 
     svp = hv_fetch( oob, "hook", 4, 0 );
@@ -175,10 +175,30 @@ void l2p_hook( lua_State *L, lua_Debug *ar )
 
     PUTBACK;
 
-    call_sv( hook, G_DISCARD );
+    call_sv( hook, G_EVAL | G_DISCARD );
 
+    SPAGAIN;
+
+    /* catch exceptions */
+    if (SvTRUE(ERRSV))
+    {
+       POPs;
+
+       error = SvPV( ERRSV, error_len );
+       /* If this is an exception thrown by Lua::API::State::error(),
+          everything is already on the Lua stack and nothing further
+          needs to be done.  If not, need to set up stack.
+        */
+       if ( ! sv_isa( ERRSV, "Lua::API::State::Error" ) )
+	  lua_pushstring( L, error );
+    }
+
+    PUTBACK;
     FREETMPS;
     LEAVE;
+
+    if ( error )
+       lua_error( L );
 }
 
 
@@ -197,6 +217,8 @@ int l2p_closure( lua_State *L )
 {
     dSP;
     SV *func;
+    char *error = NULL;
+    STRLEN error_len;
     int count;
     lua_Debug ar;
 
@@ -214,10 +236,29 @@ int l2p_closure( lua_State *L )
 
     PUTBACK;
 
-    count = call_sv( func, G_SCALAR);
+    count = call_sv( func, G_EVAL | G_SCALAR);
 
+    /* catch exceptions */
+    if (SvTRUE(ERRSV))
+    {
+       POPs;
+
+       error = SvPV( ERRSV, error_len );
+       /* If this is an exception thrown by Lua::API::State::error(),
+          everything is already on the Lua stack and nothing further
+          needs to be done.  If not, need to set up stack.
+        */
+       if ( ! sv_isa( ERRSV, "Lua::API::State::Error" ) )
+	  lua_pushstring( L, error );
+    }
+
+    PUTBACK;
     FREETMPS;
     LEAVE;
+
+    if ( error )
+       lua_error( L );
+
 
     return count;
 }
@@ -241,6 +282,8 @@ static
 int l2p_cpcall( lua_State *L ) {
     dSP;
     int count;
+    char *error = NULL;
+    STRLEN error_len;
     CPCallData *data;
 
 
@@ -260,10 +303,31 @@ int l2p_cpcall( lua_State *L ) {
     XPUSHs(get_Perl_object(L));
     PUTBACK;
 
-    count = call_sv( (SV*) data->sv, G_DISCARD);
+    count = call_sv( (SV*) data->sv, G_EVAL | G_DISCARD);
 
+    SPAGAIN;
+
+    /* catch exceptions */
+    if (SvTRUE(ERRSV))
+    {
+       POPs;
+
+       error = SvPV( ERRSV, error_len );
+       /* If this is an exception thrown by Lua::API::State::error(),
+          everything is already on the Lua stack and nothing further
+          needs to be done.  If not, need to set up stack.
+        */
+       if ( ! sv_isa( ERRSV, "Lua::API::State::Error" ) )
+	  lua_pushstring( L, error );
+    }
+
+
+    PUTBACK;
     FREETMPS;
     LEAVE;
+
+    if ( error )
+       lua_error( L );
 
     return count;
 }
