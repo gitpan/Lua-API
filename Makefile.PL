@@ -21,9 +21,14 @@ author_requires 'Module::Install::AutoLicense';
 author_requires 'Module::Install::AutoManifest';
 author_requires 'Module::Install::CheckLib';
 author_requires 'ExtUtils::Constant';
+author_requires 'Template';
+author_requires 'File::Slurp';
+author_requires 'YAML';
+author_requires 'IO::File';
 
 configure_requires 'ExtUtils::PkgConfig';
 
+test_requires 'Test::Class';
 test_requires 'Test::Most';
 test_requires 'Test::Compile';
 

@@ -117,6 +117,8 @@ static
 void set_Perl_object( void *ptr, SV* object )
 {
     HV* oob = get_oob_entry( ptr );
+
+    /* store Perl Lua::API::State object keyed off of lua_State pointer */
     SV** svp = hv_fetch( oob, "object", 5, 1 );
 
     if ( svp == NULL )
@@ -124,6 +126,46 @@ void set_Perl_object( void *ptr, SV* object )
 
     sv_setsv( *svp, object );
 }
+
+#if 0
+
+/*-------------------------------------------------------------------*/
+/* panic function to catch errors thrown from Lua API calls.  This is
+   used to turn them into Perl exceptions */
+
+static
+int set_panic( lua_State *L, jump_buf *env)
+{
+    HV* oob = get_oob_entry( L );
+    SV** svp = hv_fetch(oob, "panic", 5, 1 );
+
+    if ( svp == NULL )
+	croak( "Perl Lua::API: error getting panic state\n" );
+
+    if ( env )
+    {
+	sv_setpvn( *svp, env, sizeof(*env) );
+    }
+
+    else
+    {
+	hv_delete( oob, "panic", 4, G_DISCARD );
+    }
+}
+
+static
+int panic( Lua_State *L )
+{
+    HV* oob = get_oob_entry( L );
+    SV** svp = hv_fetch(oob, "panic", 5, 1 );
+
+    if ( svp == NULL )
+	croak( "Perl Lua::API: error getting panic state\n" );
+
+
+
+}
+#endif
 
 /*-------------------------------------------------------------------*/
 /* Support for hooks */
@@ -332,6 +374,45 @@ int l2p_cpcall( lua_State *L ) {
     return count;
 }
 
+/*-------------------------------------------------------------------*/
+
+/* put Lua error object on stack using lua_error. call only from XS
+routines.  */
+
+static int
+call_lua_error( lua_State *L )
+{
+  return lua_error( L );
+}
+
+static void
+throw_lua_error( lua_State *L, char *error )
+{
+   lua_pushcfunction( L, &call_lua_error );
+   lua_pushstring(L, error );
+   lua_pcall( L, 1, 0, 0 ); 
+}
+
+/* based on code in lauxlib.c */
+static void
+throw_luaL_error( lua_State *L, const char *fmt, ... )
+{
+   lua_pushcfunction( L, &call_lua_error );
+   va_list argp;
+   va_start(argp, fmt);
+   luaL_where(L, 1);
+   lua_pushvfstring(L, fmt, argp);
+   va_end(argp);
+   lua_concat(L, 2);
+   lua_pcall( L, 1, 0, 0 ); 
+}
+
+
+/*-------------------------------------------------------------------*/
+
+
+#include "wrap.h"
+
 
 /*-------------------------------------------------------------------*/
 
@@ -382,17 +463,24 @@ lua_checkstack(L, sz, ...)
 	int	  sz
 	PPCODE:
 	  /* call lua_checkstack */
-	  if ( items == 0 )
+	  if ( items == 2 )
 	  {
 	    int status = lua_checkstack( L, sz );
             EXTEND(SP, 1);
             PUSHs(sv_2mortal(newSViv(status)));
 	  }
-	  /* call luaL_checkstack */
-	  else if ( items == 1 )
+	  /* emulate luaL_checkstack */
+	  else if ( items == 3 )
 	  {
 	    const char *msg = (const char*) SvPV_nolen(ST(2));
-	    luaL_checkstack( L, sz, msg );
+	    if ( !lua_checkstack( L, sz ) )
+	    {
+	       throw_luaL_error( L, "stack overflow (%s)", msg );
+	       SV *rv = newSV(0);
+	       SV *sv = newSVrv( rv, "Lua::API::State::Error" );
+	       sv_setsv((SV*) get_sv("@", GV_ADD), rv);
+	       croak(NULL);
+	    }
 	  }
 	  else
 	  {
@@ -516,7 +604,6 @@ lua_getmetatable(L, ...)
 	    luaL_getmetatable(L, n);
 	    XSRETURN_EMPTY;
 	}
-
 
 void
 lua_getregistry(L)
@@ -978,22 +1065,11 @@ luaopen_table(L)
 
 MODULE = Lua::API		PACKAGE = Lua::API::State		PREFIX = luaL_
 
+INCLUDE: xs.h
+
 void
 luaL_openlibs(L)
 	lua_State *	L
-
-void
-luaL_argcheck(L, cond, numarg, extramsg)
-	lua_State *	L
-	int	cond
-	int	numarg
-	const char *	extramsg
-
-int
-luaL_argerror(L, numarg, extramsg)
-	lua_State *	L
-	int	numarg
-	const char *	extramsg
 
 void
 luaL_buffinit(L, B)
@@ -1005,61 +1081,6 @@ luaL_callmeta(L, obj, e)
 	lua_State *	L
 	int	obj
 	const char *	e
-
-void
-luaL_checkany(L, narg)
-	lua_State *	L
-	int	narg
-
-int
-luaL_checkint(L, n)
-	lua_State *	L
-	int	n
-
-lua_Integer
-luaL_checkinteger(L, numArg)
-	lua_State *	L
-	int	numArg
-
-long
-luaL_checklong(L, n)
-	lua_State *	L
-	int	n
-
-const char *
-luaL_checklstring(L, numArg, l)
-	lua_State *	L
-	int	numArg
-	size_t &l
-
-lua_Number
-luaL_checknumber(L, numArg)
-	lua_State *	L
-	int	numArg
-
-int
-luaL_checkoption(L, narg, def, lst)
-	lua_State *	L
-	int	narg
-	const char *	def
-	const char * const *	lst
-
-const char *
-luaL_checkstring(L, n)
-	lua_State *	L
-	int       n
-
-void
-luaL_checktype(L, narg, t)
-	lua_State *	L
-	int	narg
-	int	t
-
-void *
-luaL_checkudata(L, ud, tname)
-	lua_State *	L
-	int	ud
-	const char *	tname
 
 int
 luaL_dofile(L, fn)
@@ -1135,43 +1156,6 @@ luaL_newstate(CLASS)
 
 
 int
-luaL_optint(L, n, d)
-	lua_State *	L
-	int	n
-	int	d
-
-lua_Integer
-luaL_optinteger(L, nArg, def)
-	lua_State *	L
-	int	nArg
-	lua_Integer	def
-
-long
-luaL_optlong(L, n, d)
-	lua_State *	L
-	int	n
-	long	d
-
-const char *
-luaL_optlstring(L, numArg, def, l)
-	lua_State *	L
-	int	numArg
-	const char *	def
-	size_t &l
-
-lua_Number
-luaL_optnumber(L, nArg, def)
-	lua_State *	L
-	int	nArg
-	lua_Number	def
-
-const char *
-luaL_optstring(L, n, d)
-	lua_State *	L
-	int	n
-	const char *	d
-
-int
 luaL_ref(L, t)
 	lua_State *	L
 	int	t
@@ -1182,12 +1166,6 @@ luaL_ref(L, t)
  # 	lua_State *	L
  # 	const char *	libname
  # 	const luaL_Reg *	l
-
-int
-luaL_typerror(L, narg, tname)
-	lua_State *	L
-	int	narg
-	const char *	tname
 
 void
 luaL_unref(L, t, ref)

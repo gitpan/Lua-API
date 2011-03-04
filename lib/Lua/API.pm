@@ -28,7 +28,7 @@ use Carp;
 
 our @ISA = qw();
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use vars qw[ &COPYRIGHT &ENVIRONINDEX &ERRERR &ERRFILE &ERRMEM &ERRRUN
 	     &ERRSYNTAX &GCCOLLECT &GCCOUNT &GCCOUNTB &GCRESTART
@@ -295,11 +295,25 @@ implicitly or by request).
 Lua's version of Perl's C<die> is C<error>.  In order to ensure that
 Perl's stack handling isn't mucked about with when C<error> is called,
 a call to B<Lua::API::State::error> is implemented as a call to C<die>
-which is caught and then converted into a true call to C<lua_error> in
-the Perl/Lua interface code.  This I<should> be transparent to the user.
+which throws an exception of class C<Lua::API::State::Error>.  When
+returning to Lua, an exceptions are converted into a true call to
+C<lua_error>.  This I<should> be transparent to the user.
 
 Calls to C<die> from within code invoked by Lua are treated as calls
 call to C<Lua::API::State::error>.
+
+The implementation (and the format of the errors) will probably change
+as B<Lua::API> matures.
+
+=head2 Lua API routines which throw errors
+
+Some of the Lua auxiliary API routines throw errors using
+C<lua_error()>.  In order to protect Perl's runtime environment, these
+are wrapped and then called using Lua's protected call facility.  Any
+errors are translated into Perl exceptions of class
+C<Lua::API::State::Error>; the actual Lua error object is left on the
+Lua stack.  This results in an extra layer in the call stack, when
+C<lua_error()> is called.
 
 =head2 Using Lua::API
 
