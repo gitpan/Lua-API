@@ -1,5 +1,9 @@
 Revision history for Perl extension Lua::State.
 
+0.04  Mon Apr 18 18:04:27 EDT 2011
+
+  * fix META.yml for CPAN
+
 0.03  Fri Mar  4 12:08:11 2011
 
   [BUG FIXES]

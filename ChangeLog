@@ -1,4 +1,14 @@
-2011-03-04 12:18 -0500  djerius  <djerius@cfa.harvard.edu>  (250b3e1945cc [tip])
+2011-04-18 18:02 -0400  djerius  <djerius@cfa.harvard.edu>  (4148afb2b8cb [tip])
+
+	* Makefile.PL:
+	fix incorrect format for metadata provides fields
+
+2011-03-04 12:19 -0500  djerius  <djerius@cfa.harvard.edu>  (0394e6f3a78c)
+
+	* ChangeLog:
+	update log
+
+2011-03-04 12:18 -0500  djerius  <djerius@cfa.harvard.edu>  (250b3e1945cc)
 
 	* bootstrap.pod:
 	update docs to reflect new file extensions for template output

@@ -24,6 +24,7 @@ inc/Module/Install/XSUtil.pm
 lib/Lua/API.pm
 LICENSE
 Makefile.PL
+Makefile.PL.orig
 MANIFEST			This list of files
 MANIFEST.SKIP
 META.yml
